@@ -8,6 +8,10 @@ const image = new Uint8Array(
   await readFile(new URL("../fixtures/noise-603.png", import.meta.url)),
 );
 const modelId = "anthropic/claude-sonnet-5";
+const imageUrl = new URL(
+  "https://raw.githubusercontent.com/cloudycotton/ai-gateway-bedrock-image-limit-repro/main/fixtures/noise-603.png",
+);
+const useToolUrls = process.argv.includes("--url-tool");
 const scenarios = [
   {
     name: "21 images, Bedrock only",
@@ -55,19 +59,47 @@ for (const scenario of scenarios) {
       return response;
     },
   });
-  const messages = [
-    {
-      role: "user",
-      content: [
-        { type: "text", text: "Reply exactly OK." },
-        ...Array.from({ length: scenario.count }, () => ({
-          type: "file",
-          data: image,
-          mediaType: "image/png",
-        })),
-      ],
-    },
-  ];
+  const messages = useToolUrls
+    ? Array.from({ length: scenario.count }, (_, index) => {
+        const toolCallId = `image-${index}`;
+        return [
+          {
+            role: "assistant",
+            content: [{ type: "tool-call", toolCallId, toolName: "read_image", input: { index } }],
+          },
+          {
+            role: "tool",
+            content: [
+              {
+                type: "tool-result",
+                toolCallId,
+                toolName: "read_image",
+                output: {
+                  type: "content",
+                  value: [
+                    { type: "text", text: `Image ${index + 1}` },
+                    { type: "file", data: { type: "url", url: imageUrl }, mediaType: "image/png" },
+                  ],
+                },
+              },
+            ],
+          },
+        ];
+      }).flat()
+    : [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Reply exactly OK." },
+            ...Array.from({ length: scenario.count }, () => ({
+              type: "file",
+              data: image,
+              mediaType: "image/png",
+            })),
+          ],
+        },
+      ];
+  if (useToolUrls) messages.push({ role: "user", content: "Reply exactly OK." });
   const providerOptions = {
     gateway: {
       only: scenario.providers,
@@ -95,6 +127,7 @@ for (const scenario of scenarios) {
     console.log(
       JSON.stringify({
         scenario: scenario.name,
+        inputMode: useToolUrls ? "tool-result URLs" : "inline image bytes",
         imageCount: scenario.count,
         imageBytes: image.byteLength,
         requestBytes,
@@ -119,6 +152,7 @@ for (const scenario of scenarios) {
     console.log(
       JSON.stringify({
         scenario: scenario.name,
+        inputMode: useToolUrls ? "tool-result URLs" : "inline image bytes",
         imageCount: scenario.count,
         imageBytes: image.byteLength,
         requestBytes,
