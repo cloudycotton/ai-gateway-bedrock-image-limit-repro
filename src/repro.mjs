@@ -4,15 +4,29 @@ import { createGateway, generateText } from "ai";
 const apiKey = process.env.AI_GATEWAY_API_KEY;
 if (!apiKey) throw new Error("Set AI_GATEWAY_API_KEY in your environment.");
 
-const image = new Uint8Array(
+const image603 = new Uint8Array(
   await readFile(new URL("../fixtures/noise-603.png", import.meta.url)),
 );
+const image602 = new Uint8Array(
+  await readFile(new URL("../fixtures/noise-602.png", import.meta.url)),
+);
 const modelId = "anthropic/claude-sonnet-5";
-const imageUrl = new URL(
+const imageUrl603 = new URL(
   "https://raw.githubusercontent.com/cloudycotton/ai-gateway-bedrock-image-limit-repro/main/fixtures/noise-603.png",
+);
+const imageUrl602 = new URL(
+  "https://raw.githubusercontent.com/cloudycotton/ai-gateway-bedrock-image-limit-repro/main/fixtures/noise-602.png",
 );
 const useToolUrls = process.argv.includes("--url-tool");
 const scenarios = [
+  {
+    name: "22 smaller images, Bedrock only",
+    count: 22,
+    imageWidth: 602,
+    providers: ["bedrock"],
+    expected: "success",
+    expectedProvider: "bedrock",
+  },
   {
     name: "21 images, Bedrock only",
     count: 21,
@@ -48,6 +62,8 @@ if (process.argv.includes("--all")) {
 }
 
 for (const scenario of scenarios) {
+  const image = scenario.imageWidth === 602 ? image602 : image603;
+  const imageUrl = scenario.imageWidth === 602 ? imageUrl602 : imageUrl603;
   let requestBytes = 0;
   let gatewayStatus;
   const gateway = createGateway({
