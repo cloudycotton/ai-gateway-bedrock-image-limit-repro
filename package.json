@@ -1,0 +1,11 @@
+{
+  "name": "ai-gateway-bedrock-image-limit-repro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "repro": "bun src/repro.mjs"
+  },
+  "dependencies": {
+    "ai": "7.0.99"
+  }
+}
